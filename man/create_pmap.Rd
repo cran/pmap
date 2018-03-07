@@ -4,14 +4,30 @@
 \alias{create_pmap}
 \title{Create the process map from event log directly}
 \usage{
-create_pmap(eventlog, distinct_customer = FALSE, target_types = NULL)
+create_pmap(
+   eventlog,
+   distinct_case = FALSE,
+   distinct_repeated_activities = FALSE,
+   target_categories = NULL,
+   edge_label = c(
+     "amount",
+     "mean_duration",
+     "median_duration",
+     "max_duration",
+     "min_duration"
+   )
+ )
 }
 \arguments{
 \item{eventlog}{Event log}
 
-\item{distinct_customer}{Whether should count distinct customer only. Default is \code{FALSE}.}
+\item{distinct_case}{Whether should count distinct case only. Default is \code{FALSE}.}
 
-\item{target_types}{A vector contains the target event types}
+\item{distinct_repeated_activities}{Whether should distinct repeat activities. Default is \code{FALSE}, which means the repeated activity will be treated as same node. If it's \code{TRUE}, the name of the activity will be attached with the sequence number of occurance of the activity.}
+
+\item{target_categories}{A vector contains the target activity categories}
+
+\item{edge_label}{Specify which attribute is used for the edge label.}
 }
 \description{
 Create the process map by analyzing the given \code{eventlog} and extract the nodes by \code{generate_nodes()} and edges by \code{generate_edges()}.
@@ -30,13 +46,13 @@ Create the process map by analyzing the given \code{eventlog} and extract the no
       as.POSIXct("2017-10-09"),
       as.POSIXct("2017-10-10")
     ),
-    customer_id = c("c1", "c1", "c1", "c1", "c1", "c1", "c1", "c1", "c1", "c1"),
-    event_name =  c("a",  "b",  "d",  "a",  "c",  "a",  "b",  "c",  "a",  "d"),
-    event_type =  c("campaign", "campaign", "sale", "campaign", "sale", "campaign", "campaign", "sale", "campaign", "sale"),
+    case_id = c("c1", "c1", "c1", "c1", "c1", "c1", "c1", "c1", "c1", "c1"),
+    activity =  c("a",  "b",  "d",  "a",  "c",  "a",  "b",  "c",  "a",  "d"),
+    category =  c("campaign", "campaign", "sale", "campaign", "sale", "campaign", "campaign", "sale", "campaign", "sale"),
     stringsAsFactors = FALSE
   )
 > eventlog
-    timestamp customer_id event_name event_type
+    timestamp case_id activity category
 1  2017-10-01          c1          a   campaign
 2  2017-10-02          c1          b   campaign
 3  2017-10-03          c1          d       sale
@@ -47,32 +63,32 @@ Create the process map by analyzing the given \code{eventlog} and extract the no
 8  2017-10-08          c1          c       sale
 9  2017-10-09          c1          a   campaign
 10 2017-10-10          c1          d       sale
-> p <- create_pmap(eventlog, target_types = c("sale"))
+> p <- create_pmap(eventlog, target_categories = c("sale"))
 > render_pmap(p)
 }
 
 \if{html}{\figure{example.create_pmap.simple.svg}{options: alt="Figure: example.create_pmap.simple.svg"}}
 
 Or for more complex event log:\preformatted{> eventlog <- generate_eventlog(
-  size_of_eventlog = 10000, 
-  number_of_customers = 2000, 
-  event_catalogs = c("campaign", "sale"), 
-  event_catalogs_size = c(8, 2))
+    size_of_eventlog = 10000,
+    number_of_cases = 2000,
+    categories = c("campaign", "sale"),
+    categories_size = c(8, 2))
 > head(eventlog)
-            timestamp   customer_id         event_name event_type
-1 2017-01-01 02:40:20 Customer 1204 Event 7 (campaign)   campaign
-2 2017-01-01 03:10:31 Customer 1554 Event 5 (campaign)   campaign
-3 2017-01-01 04:01:51  Customer 546 Event 4 (campaign)   campaign
-4 2017-01-01 05:04:09 Customer 1119     Event 9 (sale)       sale
-5 2017-01-01 06:43:11 Customer 1368 Event 2 (campaign)   campaign
-6 2017-01-01 07:43:06  Customer 986 Event 8 (campaign)   campaign
+            timestamp   case_id         activity category
+1 2017-01-01 02:40:20 Case 1204 Activity 7 (campaign)   campaign
+2 2017-01-01 03:10:31 Case 1554 Activity 5 (campaign)   campaign
+3 2017-01-01 04:01:51  Case 546 Activity 4 (campaign)   campaign
+4 2017-01-01 05:04:09 Case 1119     Activity 9 (sale)       sale
+5 2017-01-01 06:43:11 Case 1368 Activity 2 (campaign)   campaign
+6 2017-01-01 07:43:06  Case 986 Activity 8 (campaign)   campaign
 > str(eventlog)
 'data.frame':   10000 obs. of  4 variables:
  $ timestamp  : POSIXct, format: "2017-01-01 02:40:20" "2017-01-01 03:10:31" ...
- $ customer_id: chr  "Customer 1204" "Customer 1554" "Customer 546" "Customer 1119" ...
- $ event_name : chr  "Event 7 (campaign)" "Event 5 (campaign)" "Event 4 (campaign)" "Event 9 (sale)" ...
- $ event_type : chr  "campaign" "campaign" "campaign" "sale" ...
-> p <- create_pmap(eventlog, target_types = c("sale"))
+ $ case_id: chr  "Case 1204" "Case 1554" "Case 546" "Case 1119" ...
+ $ activity : chr  "Activity 7 (campaign)" "Activity 5 (campaign)" "Activity 4 (campaign)" "Activity 9 (sale)" ...
+ $ category : chr  "campaign" "campaign" "campaign" "sale" ...
+> p <- create_pmap(eventlog, target_categories = c("sale"))
 > render_pmap(p)
 }
 
@@ -80,4 +96,6 @@ Or for more complex event log:\preformatted{> eventlog <- generate_eventlog(
 }
 \seealso{
 \link{prune_edges}
+
+\link{create_pmap_graph}
 }

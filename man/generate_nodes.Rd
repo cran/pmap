@@ -4,22 +4,22 @@
 \alias{generate_nodes}
 \title{Generate nodes from event logs}
 \usage{
-generate_nodes(eventlog, distinct_customer = FALSE)
+generate_nodes(eventlog, distinct_case = FALSE)
 }
 \arguments{
 \item{eventlog}{Event logs}
 
-\item{distinct_customer}{Whether should only count unique customer}
+\item{distinct_case}{Whether should only count unique case}
 }
 \value{
-a nodes \code{data.frame} which represents a event list, it contains \code{name}, \code{type} and \code{amount} columns.
+a nodes \code{data.frame} which represents a event log, it contains \code{name}, \code{category} and \code{amount} columns.
 }
 \description{
 \code{eventlog} should be a \code{data.frame}, which contains, at least, following columns:
 \itemize{
-\item \code{event_name}: event name. (\code{character})
-\item \code{event_type}: event type. (\code{character})
-\item \code{amount}: how many time this event happened in the \code{eventlog}
+\item \code{activity}: activity name. (\code{character})
+\item \code{category}: activity category, which is optional. If the \code{category} column is missing, the \code{activity} column will be used as the \code{category}. (\code{character})
+\item \code{amount}: how many time this activity happened in the \code{eventlog}
 }
 
 \code{generate_nodes()} will generate the node list from the given \code{eventlog} for the graph purpose.
@@ -32,36 +32,36 @@ eventlog <- generate_eventlog(10000, 100)
 nodes <- generate_nodes(eventlog)
 print(nodes)
 # # A tibble: 10 x 3
-#    name              type   amount
+#    name              category   amount
 #    <chr>             <chr>   <int>
-#  1 Event 1 (normal)  normal    958
-#  2 Event 10 (target) target    948
-#  3 Event 2 (normal)  normal   1011
-#  4 Event 3 (normal)  normal   1030
-#  5 Event 4 (normal)  normal   1072
-#  6 Event 5 (normal)  normal    968
-#  7 Event 6 (normal)  normal   1020
-#  8 Event 7 (normal)  normal    978
-#  9 Event 8 (normal)  normal   1003
-# 10 Event 9 (target)  target   1012
+#  1 Activity 1 (normal)  normal    958
+#  2 Activity 10 (target) target    948
+#  3 Activity 2 (normal)  normal   1011
+#  4 Activity 3 (normal)  normal   1030
+#  5 Activity 4 (normal)  normal   1072
+#  6 Activity 5 (normal)  normal    968
+#  7 Activity 6 (normal)  normal   1020
+#  8 Activity 7 (normal)  normal    978
+#  9 Activity 8 (normal)  normal   1003
+# 10 Activity 9 (target)  target   1012
 #
 # -----------------------------------------------------
-# Generate nodes and only count by unique customer.
+# Generate nodes and only count by unique case.
 # -----------------------------------------------------
 #
-nodes <- generate_nodes(eventlog, distinct_customer = TRUE)
+nodes <- generate_nodes(eventlog, distinct_case = TRUE)
 nodes
 # # A tibble: 10 x 3
-#    name              type   amount
+#    name              category   amount
 #    <chr>             <chr>   <int>
-#  1 Event 1 (normal)  normal    100
-#  2 Event 10 (target) target    100
-#  3 Event 2 (normal)  normal    100
-#  4 Event 3 (normal)  normal    100
-#  5 Event 4 (normal)  normal    100
-#  6 Event 5 (normal)  normal    100
-#  7 Event 6 (normal)  normal    100
-#  8 Event 7 (normal)  normal    100
-#  9 Event 8 (normal)  normal    100
-# 10 Event 9 (target)  target    100
+#  1 Activity 1 (normal)  normal    100
+#  2 Activity 10 (target) target    100
+#  3 Activity 2 (normal)  normal    100
+#  4 Activity 3 (normal)  normal    100
+#  5 Activity 4 (normal)  normal    100
+#  6 Activity 5 (normal)  normal    100
+#  7 Activity 6 (normal)  normal    100
+#  8 Activity 7 (normal)  normal    100
+#  9 Activity 8 (normal)  normal    100
+# 10 Activity 9 (target)  target    100
 }

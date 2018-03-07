@@ -1,169 +1,191 @@
-#' @title Create the event graph by given nodes and edges.
+#' @title Create the activity graph by given nodes and edges.
 #' @description Create the process map graph by specify the nodes and edges
-#' @usage create_pmap_graph(nodes, edges, target_types = NULL)
+#' @usage create_pmap_graph(
+#'    nodes,
+#'    edges,
+#'    target_categories = NULL,
+#'    edge_label = c(
+#'      "amount",
+#'      "mean_duration",
+#'      "median_duration",
+#'      "max_duration",
+#'      "min_duration"
+#'    )
+#'  )
 #' @param nodes Event list, it should be a `data.frame` containing following columns:
-#'   * `name`: Event name, will be used as label. (`character`)
-#'   * `type`: The event type (`character`)
-#' @param edges Event transform list, it should be a `data.frame` containing following columns:
-#'   * `from`: the beginning event of the edge. (`character`)
-#'   * `to`: the ending event of the edge (`character`)
-#'   * `amount`: How many of customer affected by the given event. (`numeric`)
-#' @param target_types A vector contains the target event types
+#'   * `name`: Activity name, will be used as label. (`character`)
+#'   * `category`: The activity category (`character`)
+#' @param edges Activity transform list, it should be a `data.frame` containing following columns:
+#'   * `from`: the beginning activity of the edge. (`character`)
+#'   * `to`: the ending activity of the edge (`character`)
+#'   * `amount`: How many of case affected by the given activity. (`numeric`)
+#' @param target_categories A vector contains the target activity categories
+#' @param edge_label Specify which attribute is used for the edge label.
 #' @examples
 #' eventlog <- generate_eventlog()
 #' nodes <- generate_nodes(eventlog)
 #' head(nodes)
-#' #  # A tibble: 6 x 3
-#' #    name              type   amount
-#' #    <chr>             <chr>   <int>
-#' #  1 Event 1 (normal)  normal    105
-#' #  2 Event 10 (target) target     97
-#' #  3 Event 2 (normal)  normal     94
-#' #  4 Event 3 (normal)  normal     94
-#' #  5 Event 4 (normal)  normal    101
-#' #  6 Event 5 (normal)  normal     95
+#' # # A tibble: 6 x 3
+#' #   name                 category amount
+#' #   <chr>                <chr>     <int>
+#' # 1 Activity 1 (normal)  normal       68
+#' # 2 Activity 10 (phone)  phone        63
+#' # 3 Activity 11 (phone)  phone       116
+#' # 4 Activity 12 (phone)  phone        79
+#' # 5 Activity 13 (target) target       78
+#' # 6 Activity 14 (target) target        9
 #' edges <- generate_edges(eventlog)
 #' head(edges)
 #' #  # A tibble: 6 x 3
-#' #    from             to                amount
-#' #    <chr>            <chr>              <int>
-#' #  1 Event 1 (normal) Event 1 (normal)       8
-#' #  2 Event 1 (normal) Event 10 (target)     10
-#' #  3 Event 1 (normal) Event 2 (normal)      12
-#' #  4 Event 1 (normal) Event 3 (normal)       9
-#' #  5 Event 1 (normal) Event 4 (normal)       7
-#' #  6 Event 1 (normal) Event 5 (normal)      10
-#' p <- create_pmap_graph(nodes, edges, target_types = c("target"))
+#' #    from                to                        amount
+#' #    <chr>               <chr>                     <int>
+#' #  1 Activity 1 (normal) Activity 1 (normal)       8
+#' #  2 Activity 1 (normal) Activity 10 (target)     10
+#' #  3 Activity 1 (normal) Activity 2 (normal)      12
+#' #  4 Activity 1 (normal) Activity 3 (normal)       9
+#' #  5 Activity 1 (normal) Activity 4 (normal)       7
+#' #  6 Activity 1 (normal) Activity 5 (normal)      10
+#' p <- create_pmap_graph(nodes, edges, target_categories = c("target"))
 #' render_pmap(p)
 #' @seealso [create_pmap]
 #' @importFrom dplyr        %>%
+#' @importFrom dplyr        select
 #' @importFrom dplyr        mutate
 #' @importFrom dplyr        mutate_if
 #' @importFrom dplyr        left_join
+#' @importFrom dplyr        rename
 #' @importFrom dplyr        summarize
 #' @importFrom DiagrammeR   create_graph
-#' @importFrom DiagrammeR   add_nodes_from_table
-#' @importFrom DiagrammeR   add_edges_from_table
+#' @importFrom DiagrammeR   create_node_df
+#' @importFrom DiagrammeR   create_edge_df
 #' @importFrom DiagrammeR   add_global_graph_attrs
-#' @importFrom DiagrammeR   set_node_attrs
-#' @importFrom DiagrammeR   set_edge_attrs
-#' @importFrom DiagrammeR   select_nodes
-#' @importFrom DiagrammeR   set_node_attrs_ws
-#' @importFrom DiagrammeR   get_selection
-#' @importFrom DiagrammeR   clear_selection
 #' @export
-create_pmap_graph <- function(nodes, edges, target_types = NULL) {
+create_pmap_graph <- function(
+  nodes,
+  edges,
+  target_categories = NULL,
+  edge_label = c(
+    "amount",
+    "mean_duration",
+    "median_duration",
+    "max_duration",
+    "min_duration"
+  )
+) {
   # make 'R CMD Check' happy
-  amount <- from <- to <- type <- NULL
+  amount <- from <- to <- id <- name <- NULL
 
   # Collect inbound and outbound count
   nodes_outbound <- edges %>%
-    group_by(name = from) %>%
-    summarize(outbound = sum(amount))
+    dplyr::group_by(name = from) %>%
+    dplyr::summarize(outbound = sum(amount))
 
   nodes_inbound <- edges %>%
-    group_by(name = to) %>%
-    summarize(inbound = sum(amount))
+    dplyr::group_by(name = to) %>%
+    dplyr::summarize(inbound = sum(amount))
 
   nodes <- nodes %>%
-    left_join(nodes_inbound, by = "name") %>%
-    left_join(nodes_outbound, by = "name")
+    dplyr::left_join(nodes_inbound, by = "name") %>%
+    dplyr::left_join(nodes_outbound, by = "name")
 
-  # Set all 'NA' to zero
+  # Set all 'NA' from joins to zero
   nodes$inbound[is.na(nodes$inbound)] <- 0
   nodes$outbound[is.na(nodes$outbound)] <- 0
+  if (is.null(nodes$amount)) {
+    # deal with amount column missing case
+    nodes$amount <- 0
+  } else {
+    nodes$amount[is.na(nodes$amount)] <- 0
+  }
 
-  # print("Converting factor to character [nodes]...")
-  nodes <- nodes %>%
-    mutate_if(is.factor, as.character) %>%
-    mutate(
-      index = 1:nrow(nodes),
-      tooltip = get_attrs_desc(nodes),
-      name_without_space = gsub(" ", "_", nodes$name)
-    ) %>%
-    rename(catalog = type)
+  nodes <- nodes %>% dplyr::mutate(id = 1:nrow(nodes))
   # print(str(nodes))
 
-  # print("Converting factor to character [edges]...")
+  nodes_id <- dplyr::select(nodes, id, name)
   edges <- edges %>%
-    mutate_if(is.factor, as.character) %>%
-    mutate(
-      tooltips = get_attrs_desc(edges),
-      from = gsub(" ", "_", edges$from),
-      to = gsub(" ", "_", edges$to)
-    )
+    dplyr::mutate(
+      tooltip = get_attrs_desc(edges),
+      size = projection(edges$amount, 1, 15)
+    ) %>%
+    dplyr::left_join(nodes_id, by = c("from" = "name")) %>%
+    dplyr::rename(from_id = id) %>%
+    dplyr::left_join(nodes_id, by = c("to" = "name")) %>%
+    dplyr::rename(to_id = id)
+
+  edges_cols <- names(edges)
+
+  # Fill missing duration columns with empty string
+  if (!"max_duration" %in% edges_cols) edges <- dplyr::mutate(edges, max_duration = "")
+  if (!"mean_duration" %in% edges_cols) edges <- dplyr::mutate(edges, mean_duration = "")
+  if (!"median_duration" %in% edges_cols) edges <- dplyr::mutate(edges, median_duration = "")
+  if (!"min_duration" %in% edges_cols) edges <- dplyr::mutate(edges, min_duration = "")
+
   # print(str(edges))
 
-  # print("create_graph()")
-  p <- create_graph()
-
-  # print("add_nodes_from_table()")
-  p <- add_nodes_from_table(
-    p,
-    table = nodes,
-    label_col = "name",
-    type_col = "catalog"
+  nodes_df <- DiagrammeR::create_node_df(
+    nrow(nodes),
+    type = nodes$category,
+    label = nodes$name,
+    name = nodes$name,
+    tooltip = get_attrs_desc(nodes),
+    fontcolor = "#212121",
+    color = "#01579B",
+    fillcolor = "#B3E5FC:#E1F5FE",
+    fontsize = 16,
+    margin = 0.2,
+    inbound = nodes$inbound,
+    outbound = nodes$outbound,
+    amount = nodes$amount
   )
 
-  # print("add_edges_from_table()")
-  if (nrow(edges) > 0) {
-    p <- add_edges_from_table(
-      p,
-      table = edges %>% select(-amount),
-      from_col = "from",
-      to_col = "to",
-      ndf_mapping = "name_without_space"
-    )
-  }
+  edge_label <- match.arg(edge_label)
+  edge_label_value <- switch(
+    edge_label,
+    amount = edges$amount,
+    max_duration = edges$max_duration,
+    mean_duration = edges$mean_duration,
+    median_duration = edges$median_duration,
+    min_duration = edges$min_duration
+  )
+
+  edges_df <- DiagrammeR::create_edge_df(
+    nrow(edges),
+    from = edges$from_id,
+    to = edges$to_id,
+    amount = edges$amount,
+    label = paste0("   ", edge_label_value, "   "),
+    penwidth = edges$size,
+    weight = edges$size,
+    tooltip = edges$tooltip,
+    labeltooltip = edges$tooltip,
+    max_duration = edges$max_duration,
+    mean_duration = edges$mean_duration,
+    median_duration = edges$median_duration,
+    min_duration = edges$min_duration
+  )
+
+  # print("create_graph()")
+  p <- DiagrammeR::create_graph(nodes_df, edges_df)
 
   # print("add_global_graph_attrs()")
   p <- p %>%
     # graph [ layout = "dot" ]
-    add_global_graph_attrs(attr_type = "graph", attr = "layout", value = "dot") %>%
+    DiagrammeR::add_global_graph_attrs(attr_type = "graph", attr = "layout", value = "dot") %>%
     # node [...]
-    add_global_graph_attrs(attr_type = "node", attr = "fixedsize", value = "false") %>%
-    add_global_graph_attrs(attr_type = "node", attr = "shape", value = "box") %>%
-    add_global_graph_attrs(attr_type = "node", attr = "style", value = "filled,rounded") %>%
-    add_global_graph_attrs(attr_type = "node", attr = "gradientangle", value = "90") %>%
+    DiagrammeR::add_global_graph_attrs(attr_type = "node", attr = "fixedsize", value = "false") %>%
+    DiagrammeR::add_global_graph_attrs(attr_type = "node", attr = "shape", value = "box") %>%
+    DiagrammeR::add_global_graph_attrs(attr_type = "node", attr = "style", value = "filled,rounded") %>%
+    DiagrammeR::add_global_graph_attrs(attr_type = "node", attr = "gradientangle", value = "90") %>%
+    DiagrammeR::add_global_graph_attrs(attr_type = "node", attr = "margin", value = "0.2") %>%
     # edge [...]
     ## grey900(#212121)
-    add_global_graph_attrs(attr_type = "edge", attr = "color", value = "#21212180") %>%
+    DiagrammeR::add_global_graph_attrs(attr_type = "edge", attr = "color", value = "#000000A0") %>%
     ## grey900(#212121)
-    add_global_graph_attrs(attr_type = "edge", attr = "fontcolor", value = "#212121")
+    DiagrammeR::add_global_graph_attrs(attr_type = "edge", attr = "fontcolor", value = "#212121")
 
-  # print("set_node_attrs()")
-  p <- p %>%
-    # node attributes
-    ## grey900(#212121)
-    set_node_attrs(node_attr = "fontcolor", values = "#212121") %>%
-    ## lightBlue900(#01579B)
-    set_node_attrs(node_attr = "color", values = "#01579B") %>%
-    ## lightBlue100(#B3E5FC) => lightBlue50(#E1F5FE)
-    set_node_attrs(node_attr = "fillcolor", values = "#B3E5FC:#E1F5FE") %>%
-    set_node_attrs(node_attr = "fontsize", values = (log10(nodes$inbound + nodes$outbound) + 10)) %>%
-    set_node_attrs(node_attr = "label", values = nodes$name) %>%
-    set_node_attrs(node_attr = "tooltip", values = nodes$tooltip)
+  p <- adjust_node_style(p)
 
-  # print("set_edge_attrs() for target nodes")
-  p <- select_nodes(p, conditions = type %in% target_types)
-  if (!any(is.na(get_selection(p)))) {
-    p <- p %>%
-      ## deepOrange900(#BF360C)
-      set_node_attrs_ws(node_attr = "color", value = "#BF360C") %>%
-      ## deepOrange100(#FFCCBC):deepOrange50(#FBE9E7)
-      set_node_attrs_ws(node_attr = "fillcolor", value = "#FFCCBC:#FBE9E7")
-  }
-  p <- clear_selection(p)
-
-  # print("set_edge_attrs()")
-  p <- p %>%
-    # Add amount attribute
-    set_edge_attrs(edge_attr = "amount", values = edges$amount) %>%
-    # Edge attributes
-    set_edge_attrs(edge_attr = "penwidth", values = (log10(edges$amount) + 1)) %>%
-    set_edge_attrs(edge_attr = "label", values = edges$amount) %>%
-    set_edge_attrs(edge_attr = "tooltip", values = edges$tooltips) %>%
-    set_edge_attrs(edge_attr = "labeltooltip", values = edges$tooltips)
+  p <- clean_graph(p)
 
   return(p)
 }
